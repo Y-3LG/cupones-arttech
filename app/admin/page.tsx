@@ -1,62 +1,136 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
 import dayjs from 'dayjs'
 import { QRCodeCanvas } from 'qrcode.react'
+import { useRouter } from 'next/navigation'
 
-export default function Admin() {
+const inputStyle = {
+  width: '100%',
+  padding: 10,
+  marginBottom: 15,
+  borderRadius: 5,
+  border: '1px solid #ccc'
+}
+
+const buttonStyle = {
+  width: '100%',
+  padding: 12,
+  backgroundColor: '#2563eb',
+  color: '#fff',
+  border: 'none',
+  borderRadius: 5,
+  cursor: 'pointer'
+}
+
+export default function AdminPage() {
   const [clientId, setClientId] = useState('')
-  const [coupon, setCoupon] = useState<any>(null)
+  const [discount, setDiscount] = useState(10)
+  const [days, setDays] = useState(90)
+  const [couponCode, setCouponCode] = useState('')
+  const [loading, setLoading] = useState(false)
 
+  const router = useRouter()
+
+  // 🔐 PASO 3 Y 4 — PROTECCIÓN DEL ADMIN
   useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => {
+    const checkAuth = async () => {
+      const { data } = await supabase.auth.getUser()
+
       if (!data.user) {
-        window.location.href = '/login'
+        router.push('/login')
       }
-    })
-  }, [])
+    }
 
-  const crearCupon = async () => {
-    const code = 'ART-' + Math.random().toString(36).substring(2, 8).toUpperCase()
-    const expires = dayjs().add(90, 'day').toISOString()
+    checkAuth()
+  }, [router])
 
-    const { data, error } = await supabase.from('coupons').insert({
+  const generateCoupon = async () => {
+    setLoading(true)
+
+    const code = crypto.randomUUID()
+    const expiresAt = dayjs().add(days, 'day').toISOString()
+
+    const { error } = await supabase.from('coupons').insert({
       client_id: clientId,
       coupon_code: code,
-      expires_at: expires
-    }).select().single()
+      discount_percent: discount,
+      expires_at: expiresAt,
+      is_used: false,
+    })
 
     if (error) {
       alert('Error creando cupón')
+      console.error(error)
     } else {
-      setCoupon(data)
+      setCouponCode(code)
     }
+
+    setLoading(false)
   }
 
   return (
-    <div style={{ padding: 40 }}>
-      <h1>Panel de Cupones – Arttech</h1>
+    <div style={{
+      minHeight: '100vh',
+      backgroundColor: '#f4f6f8',
+      padding: '40px',
+      fontFamily: 'Arial, sans-serif'
+    }}>
+      <div style={{
+        background: '#fff',
+        maxWidth: 520,
+        margin: '0 auto',
+        padding: 30,
+        borderRadius: 8,
+        boxShadow: '0 10px 25px rgba(0,0,0,0.08)'
+      }}>
+        <h1 style={{ marginBottom: 20 }}>🎟 Panel de Cupones</h1>
 
-      <input
-        placeholder="ID del cliente"
-        onChange={e => setClientId(e.target.value)}
-      />
-      <br /><br />
+        <label>ID del Cliente</label>
+        <input
+          value={clientId}
+          onChange={(e) => setClientId(e.target.value)}
+          placeholder="Ej: 12345678"
+          style={inputStyle}
+        />
 
-      <button onClick={crearCupon}>Crear cupón</button>
+        <label>% de Descuento</label>
+        <input
+          type="number"
+          value={discount}
+          onChange={(e) => setDiscount(Number(e.target.value))}
+          style={inputStyle}
+        />
 
-      {coupon && (
-        <div style={{ marginTop: 20 }}>
-          <p><b>Cupón:</b> {coupon.coupon_code}</p>
-          <p><b>Descuento:</b> {coupon.discount_percent}%</p>
-          <p><b>Vence:</b> {dayjs(coupon.expires_at).format('DD/MM/YYYY')}</p>
+        <label>Días de validez</label>
+        <input
+          type="number"
+          value={days}
+          onChange={(e) => setDays(Number(e.target.value))}
+          style={inputStyle}
+        />
 
-          <QRCode
-            value={`http://localhost:3000/cupon/${coupon.coupon_code}`}
-          />
-        </div>
-      )}
+        <button
+          onClick={generateCoupon}
+          disabled={loading}
+          style={buttonStyle}
+        >
+          {loading ? 'Generando...' : 'Crear cupón'}
+        </button>
+
+        {couponCode && (
+          <div style={{ marginTop: 30, textAlign: 'center' }}>
+            <h3>Cupón generado</h3>
+            <p style={{ fontSize: 12 }}>{couponCode}</p>
+
+            <QRCodeCanvas
+              value={`${window.location.origin}/verify?code=${couponCode}`}
+              size={180}
+            />
+          </div>
+        )}
+      </div>
     </div>
   )
 }
