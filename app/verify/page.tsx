@@ -27,7 +27,13 @@ export default function VerifyPage() {
       query = query.eq('client_id', clientId)
     }
 
-    const { data, error } = await query.maybeSingle()
+    const { data, error } = await supabase
+  .from('coupons')
+  .select('*')
+  .eq('coupon_code', codeFromQR || clientId)
+  .eq('is_used', false)
+  .gt('expires_at', new Date().toISOString())
+  .maybeSingle()
 
     if (error || !data) {
       setError('No se encontró un cupón válido')

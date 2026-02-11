@@ -30,10 +30,12 @@ export default function AdminPage() {
   const [days, setDays] = useState(90)
   const [couponCode, setCouponCode] = useState('')
   const [loading, setLoading] = useState(false)
+  const [searchClientId, setSearchClientId] = useState('')
+  const [clientCoupons, setClientCoupons] = useState<any[]>([])
+
 
   const router = useRouter()
 
-  // 🔐 PASO 3 Y 4 — PROTECCIÓN DEL ADMIN
   useEffect(() => {
     const checkAuth = async () => {
       const { data } = await supabase.auth.getUser()
@@ -69,6 +71,40 @@ export default function AdminPage() {
 
     setLoading(false)
   }
+
+  const searchClientCoupons = async () => {
+  const { data, error } = await supabase
+    .from('coupons')
+    .select('*')
+    .eq('client_id', searchClientId)
+    .eq('is_used', false)
+    .order('expires_at', { ascending: true })
+
+  if (error || !data || data.length === 0) {
+    alert('Este cliente no tiene cupones activos')
+    setClientCoupons([])
+    return
+  }
+
+  setClientCoupons(data)
+}
+
+  const markAsUsed = async (couponId: string) => {
+  const { error } = await supabase
+    .from('coupons')
+    .update({
+      is_used: true,
+      used_at: new Date().toISOString()
+    })
+    .eq('id', couponId)
+
+  if (error) {
+    alert('Error marcando cupón')
+  } else {
+    alert('Cupón marcado como usado')
+    setClientCoupons(prev => prev.filter(c => c.id !== couponId))
+  }
+}
 
   return (
     <div style={{
@@ -130,6 +166,45 @@ export default function AdminPage() {
             />
           </div>
         )}
+        <hr style={{ margin: '30px 0' }} />
+
+<h2>🧾 Validar cupones por cliente</h2>
+
+<input
+  placeholder="ID del cliente"
+  value={searchClientId}
+  onChange={(e) => setSearchClientId(e.target.value)}
+  style={inputStyle}
+/>
+
+<button onClick={searchClientCoupons} style={buttonStyle}>
+  Buscar cupones
+</button>
+
+{clientCoupons.map(coupon => (
+  <div
+    key={coupon.id}
+    style={{
+      marginTop: 15,
+      padding: 15,
+      border: '1px solid #ddd',
+      borderRadius: 6
+    }}
+  >
+    <p><b>Descuento:</b> {coupon.discount_percent}%</p>
+    <p>
+      <b>Vence:</b>{' '}
+      {dayjs(coupon.expires_at).format('DD/MM/YYYY')}
+    </p>
+
+    <button
+      onClick={() => markAsUsed(coupon.id)}
+      style={{ ...buttonStyle, backgroundColor: '#dc2626' }}
+    >
+      Marcar como usado
+    </button>
+  </div>
+))}
       </div>
     </div>
   )
