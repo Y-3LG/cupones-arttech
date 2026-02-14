@@ -1,4 +1,6 @@
-'use client'
+"use client";
+
+export const dynamic = "force-dynamic";
 
 import { useState } from 'react'
 import { supabase } from '@/lib/supabase'
@@ -7,51 +9,43 @@ import { useSearchParams } from 'next/navigation'
 
 export default function VerifyPage() {
   const searchParams = useSearchParams()
-  const codeFromQR = searchParams.get('code')
+  const codeFromQR = searchParams?.get('code') ?? null
+
 
   const [clientId, setClientId] = useState('')
   const [coupon, setCoupon] = useState<any>(null)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
 
-  const verifyCoupon = async () => {
-    setLoading(true)
-    setError('')
-    setCoupon(null)
+const verifyCoupon = async () => {
+  setLoading(true)
+  setError('')
+  setCoupon(null)
 
-    let query = supabase.from('coupons').select('*').eq('is_used', false)
+  let query = supabase
+    .from('coupons')
+    .select('*')
+    .eq('is_used', false)
+    .gt('expires_at', new Date().toISOString())
 
-    if (codeFromQR) {
-      query = query.eq('coupon_code', codeFromQR)
-    } else {
-      query = query.eq('client_id', clientId)
-    }
-
-    const { data, error } = await supabase
-  .from('coupons')
-  .select('*')
-  .eq('coupon_code', codeFromQR || clientId)
-  .eq('is_used', false)
-  .gt('expires_at', new Date().toISOString())
-  .maybeSingle()
-
-    if (error || !data) {
-      setError('No se encontró un cupón válido')
-      setLoading(false)
-      return
-    }
-
-    const expired = dayjs().isAfter(dayjs(data.expires_at))
-
-    if (expired) {
-      setError('Este cupón está vencido')
-      setLoading(false)
-      return
-    }
-
-    setCoupon(data)
-    setLoading(false)
+  if (codeFromQR) {
+    query = query.eq('coupon_code', codeFromQR)
+  } else {
+    query = query.eq('client_id', clientId)
   }
+
+  const { data, error } = await query.maybeSingle()
+
+  if (error || !data) {
+    setError('No se encontró un cupón válido')
+    setLoading(false)
+    return
+  }
+
+  setCoupon(data)
+  setLoading(false)
+}
+
 
   const daysLeft =
     coupon ? dayjs(coupon.expires_at).diff(dayjs(), 'day') : 0
