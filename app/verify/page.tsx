@@ -1,12 +1,12 @@
-'use client'
+import { Suspense } from 'react'
+import VerifyClient from './VerifyClient'
 
 export const dynamic = 'force-dynamic'
-export const fetchCache = 'force-no-store'
-
-import dynamicImport from 'next/dynamic'
-
-const VerifyClient = dynamicImport(() => import('./VerifyClient'), { ssr: false })
 
 export default function Page() {
-  return <VerifyClient />
+  return (
+    <Suspense fallback={<div style={{ padding: 40, fontFamily: 'Arial' }}>Cargando...</div>}>
+      <VerifyClient />
+    </Suspense>
+  )
 }
