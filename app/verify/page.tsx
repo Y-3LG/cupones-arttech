@@ -1,11 +1,13 @@
 "use client";
 
 export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
-import { useState } from 'react'
-import { supabase } from '@/lib/supabase'
-import dayjs from 'dayjs'
-import { useSearchParams } from 'next/navigation'
+import { useState } from "react";
+import { supabase } from "@/lib/supabase";
+import dayjs from "dayjs";
+import { useSearchParams } from "next/navigation";
+
 
 export default function VerifyPage() {
   const searchParams = useSearchParams()
